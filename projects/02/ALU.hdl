@@ -42,5 +42,32 @@ CHIP ALU {
         ng; // 1 if (out < 0),  0 otherwise
 
     PARTS:
-   // Put you code here:
+    // First zero the inputs according to zx and zy
+    Mux16(a=x, b=false, sel=zx, out=x-after-zero);
+    Mux16(a=y, b=false, sel=zy, out=y-after-zero);
+
+    // Then negate the inputs according to nx and ny
+    Not16(in=x-after-zero, out=x-negated);
+    Not16(in=y-after-zero, out=y-negated);
+    Mux16(a=x-after-zero, b=x-negated, sel=nx, out=x-after-negation);
+    Mux16(a=y-after-zero, b=y-negated, sel=ny, out=y-after-negation);
+
+    // Apply addition or And according to f
+    Add16(a=x-after-negation, b=y-after-negation, out=sum-x-y);
+    And16(a=x-after-negation, b=y-after-negation, out=and-x-y);
+    Mux16(a=and-x-y, b=sum-x-y, sel=f, out=func-output);
+
+    // Negate the output according to no
+    Not16(in=func-output, out=neg-func-output);
+    Mux16(a=func-output, b=neg-func-output, sel=no, out=out, out[0..7]=out-lsbs, out[8..15]=out-msbs, out[15]=sign-bit);
+
+    // Determine if output is negative by inspecting the first bit
+    And(a=sign-bit, b=true, out=ng);
+
+    // Determine if output is zero by taking Nand of each bit compared to all ones
+    Or8Way(in=out-lsbs, out=out-8-lsbs-not-zero);
+    Or8Way(in=out-msbs, out=out-8-msbs-not-zero);
+    Or(a=out-8-lsbs-not-zero, b=out-8-msbs-not-zero, out=any-out-bits-not-zero);
+    Not(in=any-out-bits-not-zero, out=zr);
+
 }
